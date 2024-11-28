@@ -247,3 +247,22 @@
 
 (define-read-only (get-pool-details (pool-id uint))
     (map-get? mixer-pools pool-id))
+
+;; private functions
+;;
+
+;; Helper function for distributing pool funds
+(define-private (distribute-to-participant 
+                 (participant principal) 
+                 (previous-result (response uint uint)))
+    (match previous-result 
+        prev-value 
+        (let ((per-participant (/ (- (get total-amount (unwrap-panic (map-get? mixer-pools u0))) 
+                                     (/ (* (get total-amount (unwrap-panic (map-get? mixer-pools u0))) 
+                                           MIXING-FEE-PERCENTAGE) 
+                                        u100)) 
+                                  (get participant-count (unwrap-panic (map-get? mixer-pools u0))))))
+            (try! (as-contract (stx-transfer? per-participant (as-contract tx-sender) participant)))
+            (ok (+ prev-value per-participant)))
+        err-value 
+        (err err-value)))
