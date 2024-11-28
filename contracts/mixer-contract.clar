@@ -69,3 +69,27 @@
         (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
         (var-set is-contract-initialized true)
         (ok true)))
+
+;; Deposit Function with Enhanced Safety
+(define-public (deposit (amount uint))
+    (begin
+        (asserts! (var-get is-contract-initialized) ERR-CONTRACT-NOT-INITIALIZED)
+        (asserts! (not (var-get is-contract-paused)) ERR-NOT-AUTHORIZED)
+        (asserts! (and (> amount u0) (<= amount MAX-TRANSACTION-AMOUNT)) ERR-INVALID-AMOUNT)
+        
+        (let ((current-day (/ block-height u144))
+              (current-total (default-to u0 
+                (map-get? daily-tx-totals {user: tx-sender, day: current-day}))))
+            (asserts! (<= (+ current-total amount) MAX-DAILY-LIMIT) ERR-DAILY-LIMIT-EXCEEDED)
+            
+            (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+            
+            (map-set user-balances 
+                tx-sender 
+                (+ (default-to u0 (map-get? user-balances tx-sender)) amount))
+            
+            (map-set daily-tx-totals 
+                {user: tx-sender, day: current-day}
+                (+ current-total amount))
+            
+            (ok true))))
