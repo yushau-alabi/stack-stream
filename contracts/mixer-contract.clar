@@ -58,3 +58,14 @@
 (define-map pool-participant-status 
     {pool-id: uint, user: principal}
     bool)
+
+;; public functions
+;;
+
+;; Initialization Function
+(define-public (initialize)
+    (begin
+        (asserts! (not (var-get is-contract-initialized)) ERR-ALREADY-INITIALIZED)
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+        (var-set is-contract-initialized true)
+        (ok true)))
