@@ -151,3 +151,36 @@
                 (- user-balance initial-amount))
             
             (ok true))))
+
+;; Join Mixer Pool with Enhanced Verification
+(define-public (join-mixer-pool (pool-id uint) (amount uint))
+    (begin
+        (asserts! (var-get is-contract-initialized) ERR-CONTRACT-NOT-INITIALIZED)
+        (asserts! (not (var-get is-contract-paused)) ERR-NOT-AUTHORIZED)
+        (asserts! (>= amount MIN-POOL-AMOUNT) ERR-INVALID-AMOUNT)
+        
+        (let ((pool (unwrap! (map-get? mixer-pools pool-id) ERR-INVALID-POOL))
+              (user-balance (default-to u0 (map-get? user-balances tx-sender))))
+            
+            (asserts! (get is-active pool) ERR-INVALID-POOL)
+            (asserts! (< (get participant-count pool) MAX-POOL-PARTICIPANTS) ERR-POOL-FULL)
+            (asserts! (>= user-balance amount) ERR-INSUFFICIENT-BALANCE)
+            (asserts! (is-none (map-get? pool-participant-status {pool-id: pool-id, user: tx-sender})) ERR-DUPLICATE-PARTICIPANT)
+            
+            (map-set mixer-pools pool-id {
+                total-amount: (+ (get total-amount pool) amount),
+                participant-count: (+ (get participant-count pool) u1),
+                is-active: true,
+                participants: (unwrap! (as-max-len? (append (get participants pool) tx-sender) u10) ERR-POOL-FULL),
+                pool-creator: (get pool-creator pool)
+            })
+            
+            (map-set pool-participant-status 
+                {pool-id: pool-id, user: tx-sender} 
+                true)
+            
+            (map-set user-balances 
+                tx-sender 
+                (- user-balance amount))
+            
+            (ok true))))
