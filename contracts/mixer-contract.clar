@@ -209,3 +209,19 @@
             (map-set mixer-pools pool-id (merge pool {is-active: false}))
             
             (ok true))))
+
+;; Emergency Pause Functionality
+(define-public (toggle-contract-pause)
+    (begin
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+        (var-set is-contract-paused (not (var-get is-contract-paused)))
+        (ok (var-get is-contract-paused))))
+
+;; Withdraw Protocol Fees (Only by Contract Owner)
+(define-public (withdraw-protocol-fees)
+    (begin
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+        (let ((fees (var-get total-protocol-fees)))
+            (try! (as-contract (stx-transfer? fees (as-contract tx-sender) CONTRACT-OWNER)))
+            (var-set total-protocol-fees u0)
+            (ok fees))))
