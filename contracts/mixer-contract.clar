@@ -184,3 +184,28 @@
                 (- user-balance amount))
             
             (ok true))))
+
+;; Distribute Pool Funds with Mixing Fee
+(define-public (distribute-pool-funds (pool-id uint))
+    (let ((pool (unwrap! (map-get? mixer-pools pool-id) ERR-INVALID-POOL))
+          (participants (get participants pool))
+          (total-pool-amount (get total-amount pool))
+          (participant-count (get participant-count pool)))
+        
+        (asserts! (get is-active pool) ERR-POOL-NOT-READY)
+        (asserts! (is-eq participant-count (len participants)) ERR-POOL-NOT-READY)
+        
+        (let ((mixing-fee (/ (* total-pool-amount MIXING-FEE-PERCENTAGE) u100))
+              (distributable-amount (- total-pool-amount mixing-fee))
+              (per-participant (/ distributable-amount participant-count)))
+            
+            ;; Add mixing fee to protocol fees
+            (var-set total-protocol-fees (+ (var-get total-protocol-fees) mixing-fee))
+            
+            ;; Distribute funds to participants
+            (try! (fold distribute-to-participant participants (ok u0)))
+            
+            ;; Mark pool as inactive
+            (map-set mixer-pools pool-id (merge pool {is-active: false}))
+            
+            (ok true))))
