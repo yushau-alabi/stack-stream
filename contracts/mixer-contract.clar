@@ -93,3 +93,30 @@
                 (+ current-total amount))
             
             (ok true))))
+
+;; Withdrawal Function with Enhanced Security
+(define-public (withdraw (amount uint))
+    (begin
+        (asserts! (var-get is-contract-initialized) ERR-CONTRACT-NOT-INITIALIZED)
+        (asserts! (not (var-get is-contract-paused)) ERR-NOT-AUTHORIZED)
+        (asserts! (and (> amount u0) (<= amount MAX-TRANSACTION-AMOUNT)) ERR-INVALID-AMOUNT)
+        
+        (let ((current-balance (default-to u0 (map-get? user-balances tx-sender)))
+              (current-day (/ block-height u144))
+              (current-total (default-to u0 
+                (map-get? daily-tx-totals {user: tx-sender, day: current-day}))))
+            
+            (asserts! (>= current-balance amount) ERR-INSUFFICIENT-BALANCE)
+            (asserts! (<= (+ current-total amount) MAX-DAILY-LIMIT) ERR-DAILY-LIMIT-EXCEEDED)
+            
+            (map-set user-balances 
+                tx-sender 
+                (- current-balance amount))
+            
+            (map-set daily-tx-totals 
+                {user: tx-sender, day: current-day}
+                (+ current-total amount))
+            
+            (try! (as-contract (stx-transfer? amount (as-contract tx-sender) tx-sender)))
+            
+            (ok true))))
