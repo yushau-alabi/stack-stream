@@ -225,3 +225,25 @@
             (try! (as-contract (stx-transfer? fees (as-contract tx-sender) CONTRACT-OWNER)))
             (var-set total-protocol-fees u0)
             (ok fees))))
+
+;; read only functions
+;;
+
+(define-read-only (get-user-balance (user principal))
+    (default-to u0 (map-get? user-balances user)))
+
+(define-read-only (get-daily-limit-remaining (user principal))
+    (let ((current-day (/ block-height u144))
+          (current-total (default-to u0 
+            (map-get? daily-tx-totals {user: user, day: current-day}))))
+        (- MAX-DAILY-LIMIT current-total)))
+
+(define-read-only (get-contract-status)
+    {
+        is-paused: (var-get is-contract-paused),
+        is-initialized: (var-get is-contract-initialized),
+        total-protocol-fees: (var-get total-protocol-fees)
+    })
+
+(define-read-only (get-pool-details (pool-id uint))
+    (map-get? mixer-pools pool-id))
